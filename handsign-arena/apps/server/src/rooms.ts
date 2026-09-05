@@ -28,6 +28,7 @@ export class Room {
   private countdownDeadline: number | null = null;
   private forfeitTimers: Partial<Record<PlayerSlot, ReturnType<typeof setTimeout>>> = {};
   private onEmpty: () => void;
+  private lastGestureLog = 0;
 
   constructor(code: string, onEmpty: () => void) {
     this.code = code;
@@ -106,7 +107,22 @@ export class Room {
       }
       case "gesture": {
         if (state.phase === "in_progress") {
+          if (Date.now() - this.lastGestureLog > 500) {
+            this.lastGestureLog = Date.now();
+            console.info("[game] received gesture", { roomCode: this.code, slot, gesture: msg.gesture, dir: msg.dir });
+          }
+          const before = { ...state.players[slot].pos, lastGesture: state.players[slot].lastGesture };
           this.engine.onGestureUpdate(slot, msg.gesture, msg.dir, Date.now());
+          const after = state.players[slot];
+          if (after.lastGesture !== before.lastGesture || after.pos.x !== before.x || after.pos.y !== before.y) {
+            console.info("[game] authoritative player state changed", {
+              roomCode: this.code,
+              slot,
+              lastGesture: after.lastGesture,
+              pos: after.pos,
+              health: after.health,
+            });
+          }
         }
         break;
       }
@@ -177,6 +193,9 @@ export class Room {
   }
 
   private pushState() {
+    if (this.engine.getState().phase === "in_progress" && this.engine.getState().tick % 30 === 0) {
+      console.info("[game] broadcasting state", { roomCode: this.code, tick: this.engine.getState().tick });
+    }
     this.broadcast({ type: "state", state: this.engine.getState() });
   }
 }

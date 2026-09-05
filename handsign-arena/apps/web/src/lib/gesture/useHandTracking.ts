@@ -18,6 +18,7 @@ export interface HandTrackingState {
 
 export interface HandTrackingHandle {
   videoRef: React.RefObject<HTMLVideoElement>;
+  attachVideo: () => Promise<void>;
   state: HandTrackingState;
   start: () => Promise<void>;
   stop: () => void;
@@ -102,6 +103,14 @@ export function useHandTracking(onStableGesture?: (g: { gesture: GestureName; di
     rafRef.current = requestAnimationFrame(loop);
   }, []);
 
+  const attachVideo = useCallback(async () => {
+    const video = videoRef.current;
+    const stream = streamRef.current;
+    if (!video || !stream) return;
+    if (video.srcObject !== stream) video.srcObject = stream;
+    await video.play().catch(() => undefined);
+  }, []);
+
   const start = useCallback(async () => {
     setState((prev) => ({ ...prev, cameraStatus: "requesting" }));
     if (!navigator.mediaDevices?.getUserMedia) {
@@ -114,10 +123,7 @@ export function useHandTracking(onStableGesture?: (g: { gesture: GestureName; di
         audio: false,
       });
       streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-      }
+      await attachVideo();
       if (!trackerRef.current) {
         trackerRef.current = new HandTracker();
       }
@@ -134,7 +140,7 @@ export function useHandTracking(onStableGesture?: (g: { gesture: GestureName; di
         setState((prev) => ({ ...prev, cameraStatus: "error" }));
       }
     }
-  }, [loop]);
+  }, [attachVideo, loop]);
 
   const stop = useCallback(() => {
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
@@ -148,5 +154,5 @@ export function useHandTracking(onStableGesture?: (g: { gesture: GestureName; di
 
   const getLandmarks = useCallback(() => landmarksRef.current, []);
 
-  return { videoRef, state, start, stop, getLandmarks };
+  return { videoRef, attachVideo, state, start, stop, getLandmarks };
 }

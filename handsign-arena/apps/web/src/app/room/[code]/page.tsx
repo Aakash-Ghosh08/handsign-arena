@@ -29,9 +29,15 @@ export default function RoomPage({ params, searchParams }: { params: { code: str
   const [practiceComplete, setPracticeComplete] = useState(false);
   const [rematchRequested, setRematchRequested] = useState(false);
   const lastHudUpdate = useRef(0);
+  const lastPlayingGestureLog = useRef(0);
+  const lastStateLog = useRef(0);
 
   const handleGesture = useCallback(
     (g: { gesture: string; direction: { x: number; y: number }; confidence: number; justEntered: boolean }) => {
+      if (phaseRef.current === "in_progress" && performance.now() - lastPlayingGestureLog.current > 500) {
+        lastPlayingGestureLog.current = performance.now();
+        console.info(`[gesture] playing gesture: ${g.gesture}`, { justEntered: g.justEntered });
+      }
       socketRef.current?.send({
         type: "gesture",
         gesture: g.gesture as any,
@@ -89,7 +95,18 @@ export default function RoomPage({ params, searchParams }: { params: { code: str
           setLocalPhase("room_error");
           break;
         case "state": {
+          if (msg.state.phase !== phaseRef.current) {
+            console.info("[game] phase transition", { from: phaseRef.current, to: msg.state.phase });
+          }
           phaseRef.current = msg.state.phase;
+          if (performance.now() - lastStateLog.current > 1000) {
+            lastStateLog.current = performance.now();
+            console.info("[game] received state", {
+              phase: msg.state.phase,
+              p1: msg.state.players.p1.pos,
+              p2: msg.state.players.p2.pos,
+            });
+          }
           arenaRef.current?.pushState(msg.state);
           const now = performance.now();
           if (now - lastHudUpdate.current > 66 || msg.state.phase !== displayState?.phase) {
@@ -130,6 +147,14 @@ export default function RoomPage({ params, searchParams }: { params: { code: str
     if (displayState?.phase === "countdown") setRematchRequested(false);
   }, [displayState?.phase]);
 
+  const phase = displayState?.phase ?? "waiting_for_players";
+  useEffect(() => {
+    if (phase === "in_progress") {
+      console.info("[gesture] gameplay phase active; reattaching camera video");
+      void tracking.attachVideo();
+    }
+  }, [phase, tracking.attachVideo]);
+
   if (localPhase === "connecting") {
     return <CenteredMessage title="Connecting…" body="Setting up your duel." />;
   }
@@ -147,7 +172,6 @@ export default function RoomPage({ params, searchParams }: { params: { code: str
   if (!mySlot) return <CenteredMessage title="Connecting…" body="" />;
 
   const oppSlot: PlayerSlot = mySlot === "p1" ? "p2" : "p1";
-  const phase = displayState?.phase ?? "waiting_for_players";
   const opponentConnected = displayState?.players[oppSlot]?.connected ?? false;
 
   return (

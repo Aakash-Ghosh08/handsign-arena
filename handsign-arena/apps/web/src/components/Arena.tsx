@@ -45,8 +45,6 @@ export const Arena = forwardRef<ArenaHandle, { className?: string }>(function Ar
       canvas.style.width = `${w}px`;
       canvas.style.height = `${h}px`;
       renderer.resize(w, h, dpr);
-      const ctx = canvas.getContext("2d");
-      ctx?.scale(dpr, dpr);
     };
     resize();
     const ro = new ResizeObserver(resize);

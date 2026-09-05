@@ -105,8 +105,9 @@ export class ArenaRenderer {
 
     const { ctx, canvas } = this;
     const { width, height } = canvas;
-    const scaleX = width / renderState.arena.width;
-    const scaleY = height / renderState.arena.height;
+    const scale = Math.min(width / renderState.arena.width, height / renderState.arena.height);
+    const offsetX = (width - renderState.arena.width * scale) / 2;
+    const offsetY = (height - renderState.arena.height * scale) / 2;
 
     ctx.save();
     ctx.clearRect(0, 0, width, height);
@@ -118,8 +119,8 @@ export class ArenaRenderer {
       shakeX = (Math.random() - 0.5) * this.shakeMag * t;
       shakeY = (Math.random() - 0.5) * this.shakeMag * t;
     }
-    ctx.translate(shakeX, shakeY);
-    ctx.scale(scaleX, scaleY);
+    ctx.translate(offsetX + shakeX, offsetY + shakeY);
+    ctx.scale(scale, scale);
 
     this.drawBackground(renderState);
 

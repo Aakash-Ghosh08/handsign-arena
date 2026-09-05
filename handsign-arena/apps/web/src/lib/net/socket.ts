@@ -18,6 +18,7 @@ export class GameSocket {
   private manuallyClosed = false;
   private queue: ClientMessage[] = [];
   private replayOnOpen: ClientMessage | null = null;
+  private lastGestureLog = 0;
 
   constructor(url: string) {
     this.url = url;
@@ -93,6 +94,10 @@ export class GameSocket {
   private rawSend(msg: ClientMessage) {
     if (msg.type === "create" || msg.type === "join") {
       console.info("[socket] Sending room message", msg);
+    }
+    if (msg.type === "gesture" && performance.now() - this.lastGestureLog > 500) {
+      this.lastGestureLog = performance.now();
+      console.info("[socket] Sending gameplay gesture", { gesture: msg.gesture });
     }
     this.ws?.send(JSON.stringify(msg));
   }
