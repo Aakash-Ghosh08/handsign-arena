@@ -14,7 +14,7 @@ FROM deps AS build
 WORKDIR /repo
 COPY packages/shared packages/shared
 COPY apps/server apps/server
-RUN pnpm --filter @handsign/shared build || true
+RUN pnpm --filter @handsign/shared build
 RUN pnpm --filter @handsign/server build
 
 FROM base AS runtime
