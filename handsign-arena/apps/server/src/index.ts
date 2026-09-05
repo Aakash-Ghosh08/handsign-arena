@@ -7,6 +7,14 @@ const PORT = Number(process.env.PORT || 8080);
 const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || "*")
   .split(",")
   .map((s) => s.trim())
+  .map((s) => {
+    if (s === "*") return s;
+    try {
+      return new URL(s).origin;
+    } catch {
+      return s;
+    }
+  })
   .filter(Boolean);
 
 const manager = new RoomManager();
@@ -26,19 +34,36 @@ const wss = new WebSocketServer({ noServer: true });
 function originAllowed(origin: string | undefined): boolean {
   if (ALLOWED_ORIGINS.includes("*")) return true;
   if (!origin) return false;
-  return ALLOWED_ORIGINS.includes(origin);
+  try {
+    return ALLOWED_ORIGINS.includes(new URL(origin).origin);
+  } catch {
+    return false;
+  }
 }
 
 server.on("upgrade", (req, socket, head) => {
-  if (!originAllowed(req.headers.origin)) {
+  const allowed = originAllowed(req.headers.origin);
+  console.info("[ws] Upgrade request", {
+    url: req.url,
+    origin: req.headers.origin,
+    host: req.headers.host,
+    originAllowed: allowed,
+  });
+  if (!allowed) {
     console.warn("[ws] Rejected upgrade", { origin: req.headers.origin });
     socket.destroy();
     return;
   }
-  console.info("[ws] Accepted upgrade", { origin: req.headers.origin });
-  wss.handleUpgrade(req, socket, head, (ws) => {
-    wss.emit("connection", ws, req);
-  });
+  try {
+    console.info("[ws] Calling wss.handleUpgrade");
+    wss.handleUpgrade(req, socket, head, (ws) => {
+      console.info("[ws] wss.handleUpgrade completed");
+      wss.emit("connection", ws, req);
+    });
+  } catch (error) {
+    console.error("[ws] Upgrade failed", error);
+    socket.destroy();
+  }
 });
 
 interface Session {
@@ -47,8 +72,10 @@ interface Session {
 }
 
 wss.on("connection", (ws: WebSocket) => {
-  console.info("[ws] Client connected");
+  console.info("[ws] WebSocket connection/open");
   const session: Session = { room: null, slot: null };
+
+  ws.on("open", () => console.info("[ws] WebSocket open"));
 
   ws.on("message", (raw) => {
     let msg: ClientMessage;
@@ -99,18 +126,20 @@ wss.on("connection", (ws: WebSocket) => {
   });
 
   ws.on("close", () => {
-    console.info("[ws] Client closed");
+    console.info("[ws] WebSocket close");
     if (session.room && session.slot) {
       session.room.removePlayer(session.slot);
     }
   });
 
   ws.on("error", () => {
-    console.error("[ws] Client error");
+    console.error("[ws] WebSocket error");
     // 'close' will still fire; nothing extra to do here.
   });
 });
 
 server.listen(PORT, () => {
-  console.log(`handsign-arena realtime server listening on :${PORT}`);
+  console.log(`handsign-arena realtime server listening on :${PORT}`, {
+    allowedOrigins: ALLOWED_ORIGINS,
+  });
 });
