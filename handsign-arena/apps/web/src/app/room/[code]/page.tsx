@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import type { GameState, PlayerSlot, ServerMessage } from "@handsign/shared";
 import { GameSocket, resolveServerUrl, type ConnectionStatus } from "@/lib/net/socket";
 import { useHandTracking } from "@/lib/gesture/useHandTracking";
@@ -14,7 +13,6 @@ import { PointOverBanner, VictoryOverlay } from "@/components/MatchOverlays";
 type LocalPhase = "connecting" | "room_error" | "in_room";
 
 export default function RoomPage({ params, searchParams }: { params: { code: string }; searchParams: { name?: string } }) {
-  const router = useRouter();
   const name = searchParams?.name?.slice(0, 16) || "Challenger";
   const requestedCode = params.code;
 
@@ -72,7 +70,7 @@ export default function RoomPage({ params, searchParams }: { params: { code: str
           setRoomCode(msg.roomCode);
           setLocalPhase("in_room");
           console.info("[room] Navigating to created room", { roomCode: msg.roomCode });
-          router.replace(`/room/${msg.roomCode}?name=${encodeURIComponent(name)}`);
+          window.history.replaceState(null, "", `/room/${msg.roomCode}?name=${encodeURIComponent(name)}`);
           break;
         case "room_joined":
           console.info("[room] Joined room", { roomCode: msg.roomCode, slot: msg.slot });
