@@ -219,6 +219,7 @@ export default function RoomPage({ params, searchParams }: { params: { code: str
             myConfidence={tracking.state.confidence}
             myHandPresent={tracking.state.handPresent}
           />
+          <GestureDebugOverlay tracking={tracking.state} />
 
           {/* small self-camera corner, so the camera stays part of the game rather than a raw floating rectangle */}
           <div className="absolute bottom-4 left-4 w-40 aspect-[4/3] border border-ink-line bg-black overflow-hidden">
@@ -251,5 +252,23 @@ function CenteredMessage({ title, body, children }: { title: string; body: strin
         {children}
       </div>
     </main>
+  );
+}
+
+function GestureDebugOverlay({ tracking }: { tracking: ReturnType<typeof useHandTracking>["state"] }) {
+  const fingers = tracking.fingerStates;
+  const fingerSummary = Object.entries(fingers)
+    .map(([name, extended]) => `${name[0].toUpperCase()}${extended ? "+" : "-"}`)
+    .join(" ");
+  return (
+    <div className="absolute right-4 bottom-4 z-10 border border-ink-line bg-ink/85 p-3 text-[11px] text-muted pointer-events-none font-mono">
+      <div className="text-paper font-semibold mb-1">Gesture debug</div>
+      <div>raw: <span className="text-paper">{tracking.rawGesture}</span></div>
+      <div>stable: <span className="text-paper">{tracking.gesture}</span></div>
+      <div>fingers: <span className="text-paper">{fingerSummary}</span></div>
+      <div>hand x: <span className="text-paper">{tracking.handX.toFixed(2)}</span></div>
+      <div>direction: <span className="text-paper">{tracking.direction.x.toFixed(2)}, {tracking.direction.y.toFixed(2)}</span></div>
+      <div>last action: <span className="text-paper">{tracking.lastActionSent}</span></div>
+    </div>
   );
 }

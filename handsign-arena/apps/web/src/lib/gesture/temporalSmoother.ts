@@ -4,7 +4,7 @@ import {
   GESTURE_RETRIGGER_COOLDOWN_MS,
   GESTURE_WINDOW_SIZE,
 } from "@handsign/shared";
-import type { ClassificationResult, GestureName } from "./classifier";
+import type { ClassificationResult, FingerStates, GestureName } from "./classifier";
 
 interface Sample {
   gesture: GestureName;
@@ -14,9 +14,12 @@ interface Sample {
 }
 
 export interface SmoothedGesture {
+  rawGesture: GestureName;
   gesture: GestureName;
   confidence: number; // average confidence supporting the stable call
   direction: { x: number; y: number };
+  fingerStates: FingerStates;
+  handX: number;
   /** true only on the single tick the gesture transitions into a *new* stable value */
   justEntered: boolean;
   handPresent: boolean;
@@ -78,9 +81,12 @@ export class TemporalGestureSmoother {
     const latestMatching = [...this.window].reverse().find((s) => s.gesture === this.stable);
 
     return {
+      rawGesture: result?.gesture ?? "none",
       gesture: this.stable,
       confidence: avgConfidence,
       direction: latestMatching?.direction ?? { x: 0, y: 0 },
+      fingerStates: result?.fingerStates ?? { thumb: false, index: false, middle: false, ring: false, pinky: false },
+      handX: result?.handX ?? 0.5,
       justEntered,
       handPresent: result !== null,
     };

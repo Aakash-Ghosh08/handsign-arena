@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { HandTracker } from "./handTracker";
-import { classifyHand, type GestureName } from "./classifier";
+import { classifyHand, type FingerStates, type GestureName } from "./classifier";
 import { TemporalGestureSmoother } from "./temporalSmoother";
 
 export type CameraStatus = "idle" | "requesting" | "ready" | "denied" | "unavailable" | "error";
@@ -10,9 +10,13 @@ export type CameraStatus = "idle" | "requesting" | "ready" | "denied" | "unavail
 export interface HandTrackingState {
   cameraStatus: CameraStatus;
   handPresent: boolean;
+  rawGesture: GestureName;
   gesture: GestureName;
   confidence: number;
   direction: { x: number; y: number };
+  fingerStates: FingerStates;
+  handX: number;
+  lastActionSent: string;
   fps: number;
 }
 
@@ -42,9 +46,13 @@ export function useHandTracking(onStableGesture?: (g: { gesture: GestureName; di
   const [state, setState] = useState<HandTrackingState>({
     cameraStatus: "idle",
     handPresent: false,
+    rawGesture: "none",
     gesture: "none",
     confidence: 0,
     direction: { x: 0, y: 0 },
+    fingerStates: { thumb: false, index: false, middle: false, ring: false, pinky: false },
+    handX: 0.5,
+    lastActionSent: "none",
     fps: 0,
   });
 
@@ -70,6 +78,13 @@ export function useHandTracking(onStableGesture?: (g: { gesture: GestureName; di
 
     const smoothed = smootherRef.current.push(classified, now);
 
+    const action = smoothed.gesture === "point"
+      ? `move_${smoothed.direction.x < -0.25 ? "left" : smoothed.direction.x > 0.25 ? "right" : "straight"}`
+      : smoothed.justEntered && smoothed.gesture !== "none"
+      ? smoothed.gesture
+      : null;
+    if (action) onGestureRef.current && setState((prev) => ({ ...prev, lastActionSent: action }));
+
     if (smoothed.justEntered && onGestureRef.current) {
       onGestureRef.current({
         gesture: smoothed.gesture,
@@ -94,9 +109,12 @@ export function useHandTracking(onStableGesture?: (g: { gesture: GestureName; di
     setState((prev) => ({
       ...prev,
       handPresent: smoothed.handPresent,
+      rawGesture: smoothed.rawGesture,
       gesture: smoothed.gesture,
       confidence: smoothed.confidence,
       direction: smoothed.direction,
+      fingerStates: smoothed.fingerStates,
+      handX: smoothed.handX,
       fps: fpsRef.current.value,
     }));
 

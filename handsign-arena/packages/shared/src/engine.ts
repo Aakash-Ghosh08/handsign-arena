@@ -130,14 +130,18 @@ export class MatchEngine {
     internal.input.moving = gesture === "point";
     if (gesture === "point") internal.input.moveDir = normalize(dir);
 
-    // record "enter" events for combo detection (fist -> open_palm arms lightning)
+    // Preserve the OG fist -> open_palm combo and also support the current
+    // browser flow's open_palm -> peace modifier sequence.
     if (gesture !== prev) {
       internal.recentGestureEnters.push(gesture);
       if (internal.recentGestureEnters.length > 6) internal.recentGestureEnters.shift();
 
       const enters = internal.recentGestureEnters;
       for (let i = 0; i < enters.length - 1; i++) {
-        if (enters[i] === "fist" && enters[i + 1] === "open_palm") {
+        if (
+          (enters[i] === "fist" && enters[i + 1] === "open_palm") ||
+          (enters[i] === "open_palm" && enters[i + 1] === "peace")
+        ) {
           internal.lightningArmedUntil = now + 4000;
         }
       }
