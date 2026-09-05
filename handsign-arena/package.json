@@ -1,0 +1,13 @@
+{
+  "name": "handsign-arena",
+  "private": true,
+  "version": "1.0.0",
+  "packageManager": "pnpm@9.7.0",
+  "scripts": {
+    "dev:web": "pnpm --filter @handsign/web dev",
+    "dev:server": "pnpm --filter @handsign/server dev",
+    "build": "pnpm --filter @handsign/web build && pnpm --filter @handsign/server build",
+    "build:web": "pnpm --filter @handsign/web build",
+    "build:server": "pnpm --filter @handsign/server build"
+  }
+}
