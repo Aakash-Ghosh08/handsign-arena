@@ -51,23 +51,31 @@ export default function RoomPage({ params, searchParams }: { params: { code: str
 
   // connect + create/join
   useEffect(() => {
-    const socket = new GameSocket(resolveServerUrl());
+    const socketUrl = resolveServerUrl();
+    console.info("[room] Opening room socket", { requestedCode, action: requestedCode === "new" ? "create" : "join" });
+    const socket = new GameSocket(socketUrl);
     socketRef.current = socket;
 
     const initialMsg =
       requestedCode === "new" ? ({ type: "create", name } as const) : ({ type: "join", roomCode: requestedCode, name } as const);
+    console.info("[room] Prepared room message", initialMsg.type === "create" ? { type: initialMsg.type } : initialMsg);
     socket.setReplayOnOpen(initialMsg);
 
     const unsubStatus = socket.onStatus(setConnStatus);
     const unsubMsg = socket.onMessage((msg: ServerMessage) => {
+      if (msg.type === "room_created" || msg.type === "room_joined" || msg.type === "room_error") {
+        console.info("[room] Received room response", msg);
+      }
       switch (msg.type) {
         case "room_created":
           setMySlot(msg.slot);
           setRoomCode(msg.roomCode);
           setLocalPhase("in_room");
+          console.info("[room] Navigating to created room", { roomCode: msg.roomCode });
           router.replace(`/room/${msg.roomCode}?name=${encodeURIComponent(name)}`);
           break;
         case "room_joined":
+          console.info("[room] Joined room", { roomCode: msg.roomCode, slot: msg.slot });
           setMySlot(msg.slot);
           setRoomCode(msg.roomCode);
           setLocalPhase("in_room");

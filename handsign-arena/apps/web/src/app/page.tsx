@@ -21,14 +21,17 @@ export default function LandingPage() {
 
   function go() {
     const trimmedName = name.trim() || "Challenger";
+    console.info("[room] Start Duel clicked", { mode, name: trimmedName });
     if (mode === "join") {
       const code = joinCode.trim().toUpperCase();
       if (code.length < 4) {
         setError("Enter the 5-character room code your opponent shared.");
         return;
       }
+      console.info("[room] Navigating to join room", { code });
       router.push(`/room/${code}?name=${encodeURIComponent(trimmedName)}`);
     } else {
+      console.info("[room] Navigating to create room");
       router.push(`/room/new?name=${encodeURIComponent(trimmedName)}`);
     }
   }

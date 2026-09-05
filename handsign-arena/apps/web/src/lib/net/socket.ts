@@ -21,6 +21,7 @@ export class GameSocket {
 
   constructor(url: string) {
     this.url = url;
+    console.info("[socket] WebSocket URL", url);
   }
 
   /** Sets a message (e.g. create/join) to resend automatically if we ever reconnect. */
@@ -35,12 +36,14 @@ export class GameSocket {
 
   private openSocket() {
     this.emitStatus(this.attempt === 0 ? "connecting" : "reconnecting");
+    console.info("[socket] Connecting", { attempt: this.attempt });
     const ws = new WebSocket(this.url);
     this.ws = ws;
 
     ws.onopen = () => {
       this.attempt = 0;
       this.emitStatus("open");
+      console.info("[socket] open");
       if (this.replayOnOpen) this.send(this.replayOnOpen);
       for (const msg of this.queue) this.rawSend(msg);
       this.queue = [];
@@ -56,6 +59,7 @@ export class GameSocket {
     };
 
     ws.onclose = () => {
+      console.warn("[socket] close", { manuallyClosed: this.manuallyClosed });
       if (this.manuallyClosed) {
         this.emitStatus("closed");
         return;
@@ -67,6 +71,7 @@ export class GameSocket {
     };
 
     ws.onerror = () => {
+      console.error("[socket] error");
       ws.close();
     };
   }
@@ -86,6 +91,9 @@ export class GameSocket {
   }
 
   private rawSend(msg: ClientMessage) {
+    if (msg.type === "create" || msg.type === "join") {
+      console.info("[socket] Sending room message", msg);
+    }
     this.ws?.send(JSON.stringify(msg));
   }
 
@@ -106,10 +114,22 @@ export class GameSocket {
 
 export function resolveServerUrl(): string {
   const explicit = process.env.NEXT_PUBLIC_REALTIME_URL;
-  if (explicit) return explicit;
+  if (explicit) {
+    const safeUrl = new URL(explicit);
+    safeUrl.username = "";
+    safeUrl.password = "";
+    safeUrl.search = "";
+    safeUrl.hash = "";
+    console.info("[socket] Using configured realtime URL", safeUrl.toString());
+    return explicit;
+  }
   if (typeof window !== "undefined") {
     const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
-    return `${proto}//${window.location.hostname}:8080`;
+    const fallback = `${proto}//${window.location.hostname}:8080`;
+    if (window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1") {
+      console.warn("[socket] NEXT_PUBLIC_REALTIME_URL is missing; using development fallback", fallback);
+    }
+    return fallback;
   }
   return "ws://localhost:8080";
 }

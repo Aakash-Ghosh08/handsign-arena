@@ -31,9 +31,11 @@ function originAllowed(origin: string | undefined): boolean {
 
 server.on("upgrade", (req, socket, head) => {
   if (!originAllowed(req.headers.origin)) {
+    console.warn("[ws] Rejected upgrade", { origin: req.headers.origin });
     socket.destroy();
     return;
   }
+  console.info("[ws] Accepted upgrade", { origin: req.headers.origin });
   wss.handleUpgrade(req, socket, head, (ws) => {
     wss.emit("connection", ws, req);
   });
@@ -45,6 +47,7 @@ interface Session {
 }
 
 wss.on("connection", (ws: WebSocket) => {
+  console.info("[ws] Client connected");
   const session: Session = { room: null, slot: null };
 
   ws.on("message", (raw) => {
@@ -52,15 +55,19 @@ wss.on("connection", (ws: WebSocket) => {
     try {
       msg = JSON.parse(raw.toString());
     } catch {
+      console.warn("[ws] Ignored invalid JSON message");
       return;
     }
+    console.info("[ws] Received client message", { type: msg.type });
 
     if (msg.type === "create") {
       const room = manager.createRoom();
       const slot = room.addPlayer(ws, msg.name || "Player");
       session.room = room;
       session.slot = slot;
+      console.info("[room] Created room", { roomCode: room.code, slot, name: msg.name || "Player" });
       ws.send(JSON.stringify({ type: "room_created", roomCode: room.code, slot }));
+      console.info("[room] Sent room_created", { roomCode: room.code, slot });
       return;
     }
 
@@ -68,17 +75,21 @@ wss.on("connection", (ws: WebSocket) => {
       const code = (msg.roomCode || "").toUpperCase().trim();
       const room = manager.getRoom(code);
       if (!room) {
+        console.warn("[room] Rejected join: room not found", { roomCode: code });
         ws.send(JSON.stringify({ type: "room_error", reason: "not_found" }));
         return;
       }
       const slot = room.addPlayer(ws, msg.name || "Player");
       if (!slot) {
+        console.warn("[room] Rejected join: room full", { roomCode: code });
         ws.send(JSON.stringify({ type: "room_error", reason: "full" }));
         return;
       }
       session.room = room;
       session.slot = slot;
+      console.info("[room] Accepted join", { roomCode: room.code, slot, name: msg.name || "Player" });
       ws.send(JSON.stringify({ type: "room_joined", roomCode: room.code, slot }));
+      console.info("[room] Sent room_joined", { roomCode: room.code, slot });
       return;
     }
 
@@ -88,12 +99,14 @@ wss.on("connection", (ws: WebSocket) => {
   });
 
   ws.on("close", () => {
+    console.info("[ws] Client closed");
     if (session.room && session.slot) {
       session.room.removePlayer(session.slot);
     }
   });
 
   ws.on("error", () => {
+    console.error("[ws] Client error");
     // 'close' will still fire; nothing extra to do here.
   });
 });
