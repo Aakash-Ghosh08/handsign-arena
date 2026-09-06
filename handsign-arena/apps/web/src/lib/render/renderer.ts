@@ -26,6 +26,7 @@ interface HitEvent {
 export class ArenaRenderer {
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
+  private fireballImage: HTMLImageElement;
   private particles = new ParticleSystem();
   private shakeUntil = 0;
   private shakeMag = 0;
@@ -41,6 +42,8 @@ export class ArenaRenderer {
     const ctx = canvas.getContext("2d");
     if (!ctx) throw new Error("2D canvas context unavailable");
     this.ctx = ctx;
+    this.fireballImage = new Image();
+    this.fireballImage.src = "/fireball.gif";
   }
 
   /** Call whenever a fresh authoritative snapshot arrives, to diff for feedback triggers. */
@@ -176,14 +179,12 @@ export class ArenaRenderer {
     }
     ctx.save();
     if (proj.kind === "fireball") {
-      const grad = ctx.createRadialGradient(proj.pos.x, proj.pos.y, 0, proj.pos.x, proj.pos.y, 15);
-      grad.addColorStop(0, PALETTE.fireCore);
-      grad.addColorStop(0.5, PALETTE.fire);
-      grad.addColorStop(1, "rgba(255,106,61,0)");
-      ctx.fillStyle = grad;
-      ctx.beginPath();
-      ctx.arc(proj.pos.x, proj.pos.y, 15, 0, Math.PI * 2);
-      ctx.fill();
+      if (this.fireballImage.complete && this.fireballImage.naturalWidth > 0) {
+        const angle = Math.atan2(proj.dir.y, proj.dir.x) + Math.PI / 2;
+        ctx.translate(proj.pos.x, proj.pos.y);
+        ctx.rotate(angle);
+        ctx.drawImage(this.fireballImage, -26, -26, 52, 52);
+      }
     } else {
       const grad = ctx.createRadialGradient(proj.pos.x, proj.pos.y, 0, proj.pos.x, proj.pos.y, 22);
       grad.addColorStop(0, PALETTE.lightningCore);
